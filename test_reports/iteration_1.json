@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only UI testing of Expo wallet app. Home screen loads correctly with Saldo Totale €0,00, 4 bottom tabs render, quick-action buttons visible, section/transaction sheets open. Core single-flow works (Entrata +€100 updates balance to €100 and Entrate (mese) +€100). However discovered: (1) CRITICAL React Native SVG error on Analisi screen (Donut) — Invalid DOM property transform-origin; (2) Delete-section action in Sezioni tab appears to have NO testID / no delete affordance detected; (3) When reusing quickActions after the sheet was previously opened, selector ambiguity exists because 'Entrata'/'Uscita'/'Trasferisci' labels exist both on quick-action cards AND inside the sheet type-toggle, causing playwright .first to hit wrong element. Suggest adding stable testIDs on quick-action buttons (quick-action-income/expense/transfer already exist — need to prefer those in tests) AND distinct inner-sheet labels or testIDs for segment toggles.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/(tabs)/analytics.tsx (Donut)", "issue": "React Native SVG prop uses 'transform-origin' (kebab-case) which is invalid DOM property on web. Causes red console error overlay on Analisi screen (line ~174). Must use 'transformOrigin' or remove the prop for web compatibility.", "testID": "analytics-donut", "priority": "HIGH"},
+      {"component": "Sezioni tab (sections.tsx)", "issue": "No delete-section button/testID found when scanning the Sezioni tab. The required flow 'deleting Risparmi moves balance back to Conto Principale' cannot be executed via UI. Verify a visible delete affordance (long-press, swipe, or trash button) with testID like 'delete-section-{id}' exists.", "testID": "delete-section-*", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Add Uscita after Add Entrata via quick actions", "issue": "During e2e test, the Uscita quick-action click was ambiguous due to duplicate 'Uscita' label (QuickActions card + inner segment toggle in open sheet). Result: expense flow effectively added +€30 instead of -€30. Needs unique accessible label or ensure sheet unmounts/hides from DOM when closed.", "affected_testIDs": ["quick-action-expense", "type-expense"]},
+      {"flow": "Trasferisci quick-action", "issue": "Same duplicate-text issue as above — 'Trasferisci' appears both on QuickActions and inside sheet segment. Transfer sheet never showed 'Alla sezione' selector during automated run; TO-SECTIONS was empty.", "affected_testIDs": ["quick-action-transfer", "type-transfer", "section-pick-to-*"]}
+    ],
+    "design_issues": [
+      {"screen": "Analisi", "issues": ["Red Expo error overlay appears due to transform-origin prop; blocks visual QA"]}
+    ],
+    "react_native_issues": [
+      {"component": "Donut (analytics.tsx)", "issue": "Invalid DOM property transform-origin — use camelCase transformOrigin to be web-compatible."},
+      {"component": "Multiple places (pointerEvents)", "issue": "Deprecation warning: props.pointerEvents is deprecated. Use style.pointerEvents."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_1.json"],
+  "action_items": [
+    "Fix Donut SVG prop: change transform-origin to transformOrigin in /app/frontend/app/(tabs)/analytics.tsx (around line 174) to remove red error overlay.",
+    "Add a delete-section control in /app/frontend/app/(tabs)/sections.tsx with testID 'delete-section-{id}' (and a confirmation dialog with testID 'confirm-delete'). This flow is explicitly required by the problem statement.",
+    "Avoid duplicate accessible text between QuickActions card labels ('Entrata'/'Uscita'/'Trasferisci') and the segment toggle labels inside AddTransactionSheet. Options: (a) rename segment labels (e.g. keep 'Entrata/Uscita/Trasferimento') or rely only on testID selectors in tests; (b) ensure BottomSheet is fully unmounted when closed (index=-1) so inner labels aren't in DOM — currently they remain in DOM.",
+    "Migrate pointerEvents prop usages to style.pointerEvents to clear deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "store.ts: addTransaction allows negative balances silently (comment says 'won't block') — ok per spec but consider surface warning.",
+    "AddTransactionSheet: useImperativeHandle.open() correctly resets type/category/sectionId/toSectionId, but amount/note resets are correct too — logic is sound; issue is purely selector ambiguity + DOM persistence.",
+    "analytics.tsx Donut uses invalid web prop; test manually on web preview before shipping."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "~50%"},
+  "seed_data_creation": "AsyncStorage/localStorage was cleared before testing; no seed required.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Confirmed working: initial load, Home screen, bottom tabs, single Entrata flow (+€100 reflected in balance & month income), New Section creation (Risparmi with target 1000 + green color + icon), Movimenti filter chips exist (filter-all/income/expense/transfer). Not fully validated due to issues above: Uscita flow, Trasferisci flow, Analisi donut rendering, Delete section flow. Use quick-action-* testIDs explicitly, don't use text-based selectors due to duplicate labels.",
+  "rca_of_issue": "transform-origin RCA: react-native-svg on web expects camelCase DOM-safe props; using kebab-case causes React to warn + Expo error overlay. Fix is a 1-line rename. Delete-section RCA: feature likely not yet implemented in Sezioni tab — no delete testID found during DOM scan."
+}
