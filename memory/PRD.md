@@ -28,6 +28,17 @@ Mobile app (Expo React Native) for personal money management with a central bala
 - `src/components/AddSectionSheet.tsx` — section creator.
 - `app/(tabs)/*` — screens.
 
+## Multi-currency (added)
+- Base currency is **EUR** (all amounts stored in EUR for consistency).
+- User can display balances in **EUR, USD, GBP, JPY, CHF, PLN, CNY, CAD, AUD** via chip on Home and Analisi screens.
+- Live rates from `api.frankfurter.dev` (free, no API key), cached 1h in AsyncStorage, pull-to-refresh button in picker.
+- Inputs (new transaction amount, section target) accept values in the currently displayed currency and are converted back to EUR before storage; a hint shows the EUR equivalent when a non-EUR currency is active.
+
+## Analisi improvements
+- Month navigator (prev/next, forward disabled on current month).
+- Donut shows a readable % with legend; empty state when no data.
+- Currency chip in header.
+
 ## Not implemented (user chose "No AI", "No auth")
 - Login / sync between devices.
 - AI categorisation.

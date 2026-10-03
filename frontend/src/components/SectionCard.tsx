@@ -2,7 +2,7 @@ import FeatherIcon from "@react-native-vector-icons/feather";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/src/theme";
 import { Section } from "@/src/types";
-import { formatCurrency } from "@/src/store";
+import { useCurrency } from "@/src/currency";
 
 const COLOR_MAP: Record<Section["color"], string> = {
   purple: colors.brandPrimary,
@@ -19,6 +19,7 @@ export function SectionCard({
   onPress?: () => void;
   compact?: boolean;
 }) {
+  const { format } = useCurrency();
   const accent = COLOR_MAP[section.color] ?? colors.brandPrimary;
   const progress = section.target && section.target > 0
     ? Math.min(1, Math.max(0, section.balance / section.target))
@@ -42,7 +43,7 @@ export function SectionCard({
           {section.name}
         </Text>
       </View>
-      <Text style={styles.balance}>{formatCurrency(section.balance)}</Text>
+      <Text style={styles.balance}>{format(section.balance)}</Text>
       {progress !== null && (
         <View style={styles.progressWrap}>
           <View
@@ -51,7 +52,7 @@ export function SectionCard({
               { width: `${progress * 100}%`, backgroundColor: accent },
             ]}
           />
-          <Text style={styles.target}>Obiettivo: {formatCurrency(section.target!)}</Text>
+          <Text style={styles.target}>Obiettivo: {format(section.target!)}</Text>
         </View>
       )}
     </Pressable>

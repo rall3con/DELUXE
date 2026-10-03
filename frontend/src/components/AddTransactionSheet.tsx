@@ -21,6 +21,7 @@ import {
   TxType,
 } from "@/src/types";
 import { addTransaction } from "@/src/store";
+import { convertFromEUR, useCurrency } from "@/src/currency";
 
 export type AddTransactionSheetRef = {
   open: (type: TxType) => void;
@@ -34,6 +35,7 @@ type Props = {
 export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
   function AddTransactionSheet({ sections }, ref) {
     const sheetRef = useRef<BottomSheetModal>(null);
+    const { info, rates, currency } = useCurrency();
     const [type, setType] = useState<TxType>("expense");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0].id);
@@ -85,10 +87,20 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
         setError("Inserisci un importo valido");
         return;
       }
+      // User enters amount in selected currency; convert back to EUR for storage
+      let amountEUR = n;
+      if (currency !== "EUR") {
+        const rate = rates?.rates[currency];
+        if (!rate || rate <= 0) {
+          setError("Tassi di cambio non disponibili");
+          return;
+        }
+        amountEUR = n / rate;
+      }
       setSubmitting(true);
       const res = await addTransaction({
         type,
-        amount: n,
+        amount: amountEUR,
         category: type === "transfer" ? "transfer" : category,
         note: note.trim() || undefined,
         sectionId,
@@ -102,7 +114,7 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       sheetRef.current?.dismiss();
-    }, [amount, category, note, sectionId, toSectionId, type]);
+    }, [amount, category, note, sectionId, toSectionId, type, currency, rates]);
 
     const renderBackdrop = useCallback(
       (props: any) => (
@@ -178,17 +190,30 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
 
           {/* Amount */}
           <View style={styles.amountWrap}>
-            <Text style={styles.euroSign}>€</Text>
+            <Text style={styles.euroSign}>{info.symbol}</Text>
             <TextInput
               testID="tx-amount-input"
               value={amount}
               onChangeText={setAmount}
-              placeholder="0,00"
+              placeholder={info.decimals === 0 ? "0" : "0,00"}
               placeholderTextColor={colors.muted}
               keyboardType="decimal-pad"
               style={[styles.amountInput, { color: accent }]}
             />
           </View>
+          {currency !== "EUR" && amount && !isNaN(parseFloat(amount.replace(",", "."))) && rates && (
+            <Text style={styles.conversionHint} testID="tx-conversion-hint">
+              ≈ €
+              {(
+                parseFloat(amount.replace(",", ".")) /
+                (rates.rates[currency] || 1)
+              ).toLocaleString("it-IT", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              salvato in Euro
+            </Text>
+          )}
 
           {/* Category (only for income/expense) */}
           {type !== "transfer" && (
@@ -376,6 +401,13 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     minWidth: 100,
     textAlign: "center",
+  },
+  conversionHint: {
+    color: colors.muted,
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: -spacing.sm,
+    fontStyle: "italic",
   },
   sectionTitle: {
     color: colors.muted,

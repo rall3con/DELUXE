@@ -1,40 +1,74 @@
-import { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import FeatherIcon from "@react-native-vector-icons/feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, G } from "react-native-svg";
 
-import { formatCurrency, monthlyStats, useAppState } from "@/src/store";
+import { useAppState } from "@/src/store";
+import { useCurrency } from "@/src/currency";
+import {
+  CurrencyPicker,
+  CurrencyPickerRef,
+} from "@/src/components/CurrencyPicker";
 import { colors, radius, spacing } from "@/src/theme";
-import { EXPENSE_CATEGORIES, categoryLabel } from "@/src/types";
+import { categoryLabel } from "@/src/types";
+
+const MONTHS_IT = [
+  "Gennaio",
+  "Febbraio",
+  "Marzo",
+  "Aprile",
+  "Maggio",
+  "Giugno",
+  "Luglio",
+  "Agosto",
+  "Settembre",
+  "Ottobre",
+  "Novembre",
+  "Dicembre",
+];
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const state = useAppState();
+  const { format, info } = useCurrency();
+  const currencyRef = useRef<CurrencyPickerRef>(null);
+
+  // Month offset: 0 = current month, -1 = previous, etc.
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const monthDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + monthOffset);
+    return d;
+  }, [monthOffset]);
 
   const data = useMemo(() => {
     if (!state) return null;
-    const stats = monthlyStats(state);
-    const now = new Date();
-    // Expenses by category (this month)
+    const target = monthDate;
+    let income = 0;
+    let expense = 0;
     const byCat: Record<string, number> = {};
     for (const t of state.transactions) {
       const d = new Date(t.createdAt);
       if (
-        t.type === "expense" &&
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear()
+        d.getMonth() === target.getMonth() &&
+        d.getFullYear() === target.getFullYear()
       ) {
-        byCat[t.category] = (byCat[t.category] ?? 0) + t.amount;
+        if (t.type === "income") income += t.amount;
+        else if (t.type === "expense") {
+          expense += t.amount;
+          byCat[t.category] = (byCat[t.category] ?? 0) + t.amount;
+        }
       }
     }
     const totalExp = Object.values(byCat).reduce((a, b) => a + b, 0);
     const breakdown = Object.entries(byCat)
       .map(([cat, amt]) => ({ cat, amt, pct: totalExp ? amt / totalExp : 0 }))
       .sort((a, b) => b.amt - a.amt);
-    const net = stats.income - stats.expense;
-    return { stats, breakdown, totalExp, net };
-  }, [state]);
+    return { income, expense, breakdown, totalExp, net: income - expense };
+  }, [state, monthDate]);
 
   if (!state || !data) return <View style={styles.container} />;
 
@@ -49,20 +83,55 @@ export default function AnalyticsScreen() {
     "#5EE6B8",
   ];
 
-  const totalForDonut = data.stats.income + data.stats.expense;
-  const incomePct = totalForDonut ? data.stats.income / totalForDonut : 0;
-  const expensePct = totalForDonut ? data.stats.expense / totalForDonut : 0;
+  const totalForDonut = data.income + data.expense;
+  const incomePct = totalForDonut ? data.income / totalForDonut : 0;
+  const expensePct = totalForDonut ? data.expense / totalForDonut : 0;
+
+  const monthLabel = `${MONTHS_IT[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
 
   return (
     <View style={styles.container} testID="analytics-screen">
       <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        <Text style={styles.title}>Analisi</Text>
-        <Text style={styles.subtitle}>
-          {new Date().toLocaleDateString("it-IT", {
-            month: "long",
-            year: "numeric",
-          })}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Analisi</Text>
+          <Text style={styles.subtitle}>{monthLabel}</Text>
+        </View>
+        <Pressable
+          testID="analytics-currency"
+          onPress={() => currencyRef.current?.open()}
+          style={styles.currencyChip}
+        >
+          <Text style={styles.flag}>{info.flag}</Text>
+          <Text style={styles.code}>{info.code}</Text>
+          <FeatherIcon name="chevron-down" size={14} color={colors.onSurface} />
+        </Pressable>
+      </View>
+
+      {/* Month navigator */}
+      <View style={styles.monthNav}>
+        <Pressable
+          testID="prev-month"
+          onPress={() => setMonthOffset((o) => o - 1)}
+          style={styles.navBtn}
+        >
+          <FeatherIcon name="chevron-left" size={18} color={colors.onSurface} />
+        </Pressable>
+        <View style={styles.monthLabelWrap}>
+          <FeatherIcon name="calendar" size={14} color={colors.muted} />
+          <Text style={styles.monthLabel}>{monthLabel}</Text>
+        </View>
+        <Pressable
+          testID="next-month"
+          onPress={() => setMonthOffset((o) => Math.min(0, o + 1))}
+          style={[styles.navBtn, monthOffset >= 0 && { opacity: 0.3 }]}
+          disabled={monthOffset >= 0}
+        >
+          <FeatherIcon
+            name="chevron-right"
+            size={18}
+            color={colors.onSurface}
+          />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -75,24 +144,36 @@ export default function AnalyticsScreen() {
           <Text
             style={[
               styles.netValue,
-              { color: data.net >= 0 ? colors.brandTertiary : colors.brandSecondary },
+              {
+                color:
+                  data.net >= 0 ? colors.brandTertiary : colors.brandSecondary,
+              },
             ]}
             testID="analytics-net"
           >
             {data.net >= 0 ? "+" : "-"}
-            {formatCurrency(data.net).replace("-", "")}
+            {format(data.net).replace("-", "")}
           </Text>
 
           {/* Donut */}
           <View style={styles.donutWrap}>
             <Donut
-              size={160}
-              strokeWidth={16}
+              size={180}
+              strokeWidth={18}
               incomePct={incomePct}
               expensePct={expensePct}
             />
             <View style={styles.donutCenter}>
-              <Text style={styles.donutLabel}>Flusso</Text>
+              {totalForDonut > 0 ? (
+                <>
+                  <Text style={styles.donutPercent}>
+                    {Math.round(incomePct * 100)}%
+                  </Text>
+                  <Text style={styles.donutHint}>entrate</Text>
+                </>
+              ) : (
+                <Text style={styles.donutEmpty}>Nessun dato</Text>
+              )}
             </View>
           </View>
 
@@ -100,15 +181,19 @@ export default function AnalyticsScreen() {
             <View style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: colors.brandTertiary }]} />
               <Text style={styles.legendLabel}>Entrate</Text>
-              <Text style={[styles.legendValue, { color: colors.brandTertiary }]}>
-                {formatCurrency(data.stats.income).replace("-", "")}
+              <Text
+                style={[styles.legendValue, { color: colors.brandTertiary }]}
+              >
+                {format(data.income).replace("-", "")}
               </Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: colors.brandSecondary }]} />
               <Text style={styles.legendLabel}>Uscite</Text>
-              <Text style={[styles.legendValue, { color: colors.brandSecondary }]}>
-                {formatCurrency(data.stats.expense).replace("-", "")}
+              <Text
+                style={[styles.legendValue, { color: colors.brandSecondary }]}
+              >
+                {format(data.expense).replace("-", "")}
               </Text>
             </View>
           </View>
@@ -117,7 +202,7 @@ export default function AnalyticsScreen() {
         {/* Breakdown */}
         <Text style={styles.sectionTitle}>Spese per categoria</Text>
         {data.breakdown.length === 0 ? (
-          <View style={styles.empty}>
+          <View style={styles.empty} testID="analytics-empty">
             <FeatherIcon name="bar-chart-2" size={28} color={colors.muted} />
             <Text style={styles.emptyText}>Nessuna uscita questo mese</Text>
           </View>
@@ -133,14 +218,17 @@ export default function AnalyticsScreen() {
                       <Text style={styles.catName}>{categoryLabel(b.cat)}</Text>
                     </View>
                     <Text style={styles.catAmount}>
-                      {formatCurrency(b.amt).replace("-", "")}
+                      {format(b.amt).replace("-", "")}
                     </Text>
                   </View>
                   <View style={styles.barBg}>
                     <View
                       style={[
                         styles.barFill,
-                        { width: `${b.pct * 100}%`, backgroundColor: color },
+                        {
+                          width: `${b.pct * 100}%`,
+                          backgroundColor: color,
+                        },
                       ]}
                     />
                   </View>
@@ -153,6 +241,8 @@ export default function AnalyticsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <CurrencyPicker ref={currencyRef} />
     </View>
   );
 }
@@ -161,35 +251,35 @@ function Donut({
   size,
   strokeWidth,
   incomePct,
+  expensePct,
 }: {
   size: number;
   strokeWidth: number;
   incomePct: number;
   expensePct: number;
 }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+  const r = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
   const incomeLength = circumference * incomePct;
   const expenseLength = circumference * expensePct;
-
   const cx = size / 2;
   const cy = size / 2;
   return (
     <Svg width={size} height={size}>
       <G transform={`rotate(-90 ${cx} ${cy})`}>
         <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
+          cx={cx}
+          cy={cy}
+          r={r}
           stroke={colors.surfaceTertiary}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
         {incomePct > 0 && (
           <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
+            cx={cx}
+            cy={cy}
+            r={r}
             stroke={colors.brandTertiary}
             strokeWidth={strokeWidth}
             fill="transparent"
@@ -199,9 +289,9 @@ function Donut({
         )}
         {expensePct > 0 && (
           <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
+            cx={cx}
+            cy={cy}
+            r={r}
             stroke={colors.brandSecondary}
             strokeWidth={strokeWidth}
             fill="transparent"
@@ -221,6 +311,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
@@ -236,8 +329,60 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textTransform: "capitalize",
   },
+  currencyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  flag: {
+    fontSize: 14,
+  },
+  code: {
+    color: colors.onSurface,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  monthNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  navBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceTertiary,
+  },
+  monthLabelWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  monthLabel: {
+    color: colors.onSurface,
+    fontSize: 13,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
   content: {
     padding: spacing.lg,
+    paddingTop: 0,
     paddingBottom: spacing.xxxl,
     gap: spacing.lg,
   },
@@ -264,8 +409,8 @@ const styles = StyleSheet.create({
   },
   donutWrap: {
     marginTop: spacing.sm,
-    width: 160,
-    height: 160,
+    width: 180,
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -275,7 +420,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     pointerEvents: "none",
   },
-  donutLabel: {
+  donutPercent: {
+    color: colors.onSurface,
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  donutHint: {
+    color: colors.muted,
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  donutEmpty: {
     color: colors.muted,
     fontSize: 11,
     textTransform: "uppercase",

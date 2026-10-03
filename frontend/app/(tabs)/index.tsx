@@ -18,11 +18,15 @@ import {
   AddSectionSheetRef,
 } from "@/src/components/AddSectionSheet";
 import {
-  formatCurrency,
   monthlyStats,
   totalBalance,
   useAppState,
 } from "@/src/store";
+import { useCurrency } from "@/src/currency";
+import {
+  CurrencyPicker,
+  CurrencyPickerRef,
+} from "@/src/components/CurrencyPicker";
 import { colors, radius, spacing } from "@/src/theme";
 
 const HERO_BG =
@@ -32,8 +36,10 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const state = useAppState();
   const router = useRouter();
+  const { format, info } = useCurrency();
   const txSheetRef = useRef<AddTransactionSheetRef>(null);
   const sectionSheetRef = useRef<AddSectionSheetRef>(null);
+  const currencySheetRef = useRef<CurrencyPickerRef>(null);
 
   if (!state) {
     return <View style={styles.container} testID="home-loading" />;
@@ -70,19 +76,34 @@ export default function HomeScreen() {
 
           <View style={styles.heroHeader}>
             <Text style={styles.greeting}>Ciao 👋</Text>
-            <Pressable
-              testID="header-add-section"
-              onPress={() => sectionSheetRef.current?.open()}
-              style={styles.headerBtn}
-            >
-              <FeatherIcon name="plus" color={colors.onSurface} size={18} />
-            </Pressable>
+            <View style={styles.heroActions}>
+              <Pressable
+                testID="header-currency"
+                onPress={() => currencySheetRef.current?.open()}
+                style={styles.currencyChip}
+              >
+                <Text style={styles.currencyFlag}>{info.flag}</Text>
+                <Text style={styles.currencyCode}>{info.code}</Text>
+                <FeatherIcon
+                  name="chevron-down"
+                  size={14}
+                  color={colors.onSurface}
+                />
+              </Pressable>
+              <Pressable
+                testID="header-add-section"
+                onPress={() => sectionSheetRef.current?.open()}
+                style={styles.headerBtn}
+              >
+                <FeatherIcon name="plus" color={colors.onSurface} size={18} />
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.balanceWrap}>
             <Text style={styles.balanceLabel}>Saldo Totale</Text>
             <Text style={styles.balance} testID="home-total-balance">
-              {formatCurrency(total)}
+              {format(total)}
             </Text>
 
             <View style={styles.statsRow}>
@@ -95,7 +116,7 @@ export default function HomeScreen() {
                 <View>
                   <Text style={styles.statLabel}>Entrate (mese)</Text>
                   <Text style={[styles.statValue, { color: colors.brandTertiary }]} testID="home-month-income">
-                    +{formatCurrency(stats.income).replace("-", "")}
+                    +{format(stats.income).replace("-", "")}
                   </Text>
                 </View>
               </View>
@@ -109,7 +130,7 @@ export default function HomeScreen() {
                 <View>
                   <Text style={styles.statLabel}>Uscite (mese)</Text>
                   <Text style={[styles.statValue, { color: colors.brandSecondary }]} testID="home-month-expense">
-                    -{formatCurrency(stats.expense).replace("-", "")}
+                    -{format(stats.expense).replace("-", "")}
                   </Text>
                 </View>
               </View>
@@ -192,6 +213,7 @@ export default function HomeScreen() {
 
       <AddTransactionSheet ref={txSheetRef} sections={state.sections} />
       <AddSectionSheet ref={sectionSheetRef} />
+      <CurrencyPicker ref={currencySheetRef} />
     </View>
   );
 }
@@ -215,6 +237,31 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     fontSize: 16,
     fontWeight: "600",
+  },
+  heroActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "center",
+  },
+  currencyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  currencyFlag: {
+    fontSize: 14,
+  },
+  currencyCode: {
+    color: colors.onSurface,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   headerBtn: {
     width: 36,

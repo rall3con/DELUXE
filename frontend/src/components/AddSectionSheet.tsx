@@ -8,6 +8,7 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius, spacing } from "@/src/theme";
 import { addSection } from "@/src/store";
+import { useCurrency } from "@/src/currency";
 
 export type AddSectionSheetRef = {
   open: () => void;
@@ -25,6 +26,7 @@ const COLOR_HEX = {
 export const AddSectionSheet = forwardRef<AddSectionSheetRef, {}>(
   function AddSectionSheet(_, ref) {
     const sheetRef = useRef<BottomSheetModal>(null);
+    const { info, currency, rates } = useCurrency();
     const [name, setName] = useState("");
     const [target, setTarget] = useState("");
     const [icon, setIcon] = useState("star");
@@ -63,7 +65,16 @@ export const AddSectionSheet = forwardRef<AddSectionSheetRef, {}>(
         setError("Inserisci un nome");
         return;
       }
-      const t = target.trim() ? parseFloat(target.replace(",", ".")) : undefined;
+      let t = target.trim() ? parseFloat(target.replace(",", ".")) : undefined;
+      // target entered in displayed currency; convert to EUR for storage
+      if (t && currency !== "EUR") {
+        const rate = rates?.rates[currency];
+        if (!rate || rate <= 0) {
+          setError("Tassi di cambio non disponibili");
+          return;
+        }
+        t = t / rate;
+      }
       await addSection({
         name: name.trim(),
         icon,
@@ -71,7 +82,7 @@ export const AddSectionSheet = forwardRef<AddSectionSheetRef, {}>(
         target: t && t > 0 ? t : undefined,
       });
       sheetRef.current?.dismiss();
-    }, [name, target, icon, color]);
+    }, [name, target, icon, color, currency, rates]);
 
     return (
       <BottomSheetModal
@@ -95,12 +106,12 @@ export const AddSectionSheet = forwardRef<AddSectionSheetRef, {}>(
             style={styles.input}
           />
 
-          <Text style={styles.label}>Obiettivo (opzionale, €)</Text>
+          <Text style={styles.label}>Obiettivo (opzionale, {info.symbol})</Text>
           <TextInput
             testID="section-target-input"
             value={target}
             onChangeText={setTarget}
-            placeholder="es. 1000"
+            placeholder={info.decimals === 0 ? "es. 1000" : "es. 1000"}
             placeholderTextColor={colors.muted}
             keyboardType="decimal-pad"
             style={styles.input}

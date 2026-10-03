@@ -15,12 +15,14 @@ import {
   AddSectionSheetRef,
 } from "@/src/components/AddSectionSheet";
 import { deleteSection, useAppState } from "@/src/store";
+import { useCurrency } from "@/src/currency";
 import { colors, radius, spacing } from "@/src/theme";
 import { Section } from "@/src/types";
 
 export default function SectionsScreen() {
   const insets = useSafeAreaInsets();
   const state = useAppState();
+  const { format } = useCurrency();
   const sheetRef = useRef<AddSectionSheetRef>(null);
   const [confirming, setConfirming] = useState<Section | null>(null);
 
@@ -80,7 +82,7 @@ export default function SectionsScreen() {
           <View style={styles.confirmBox}>
             <Text style={styles.confirmTitle}>Eliminare la sezione?</Text>
             <Text style={styles.confirmText}>
-              Il saldo di "{confirming.name}" ({confirming.balance.toFixed(2)} €)
+              Il saldo di "{confirming.name}" ({format(confirming.balance)})
               verrà spostato in "Conto Principale". Tutti i movimenti collegati
               saranno rimossi.
             </Text>

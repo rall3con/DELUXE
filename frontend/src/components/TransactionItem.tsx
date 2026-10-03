@@ -2,7 +2,7 @@ import FeatherIcon from "@react-native-vector-icons/feather";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/src/theme";
 import { Transaction, categoryIcon, categoryLabel } from "@/src/types";
-import { formatCurrency } from "@/src/store";
+import { useCurrency } from "@/src/currency";
 
 export function TransactionItem({
   tx,
@@ -15,6 +15,7 @@ export function TransactionItem({
   destName?: string;
   onLongPress?: () => void;
 }) {
+  const { format } = useCurrency();
   const isIncome = tx.type === "income";
   const isExpense = tx.type === "expense";
   const isTransfer = tx.type === "transfer";
@@ -65,7 +66,7 @@ export function TransactionItem({
         ]}
       >
         {sign}
-        {formatCurrency(tx.amount).replace("-", "")}
+        {format(tx.amount).replace("-", "")}
       </Text>
     </Pressable>
   );
