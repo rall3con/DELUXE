@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.wallettracker.d61t03"
+      "bundleIdentifier": "com.emergent.wallettracker.d61t03",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Sblocca l'app con Face ID"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +42,13 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-status-bar",
-      "@react-native-vector-icons/feather"
+      "@react-native-vector-icons/feather",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Sblocca l'app con Face ID"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

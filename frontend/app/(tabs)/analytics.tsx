@@ -11,7 +11,7 @@ import {
   CurrencyPickerRef,
 } from "@/src/components/CurrencyPicker";
 import { colors, radius, spacing } from "@/src/theme";
-import { categoryLabel } from "@/src/types";
+import { resolveCategory } from "@/src/types";
 
 const MONTHS_IT = [
   "Gennaio",
@@ -215,7 +215,7 @@ export default function AnalyticsScreen() {
                   <View style={styles.catHeader}>
                     <View style={styles.catTitleRow}>
                       <View style={[styles.dot, { backgroundColor: color }]} />
-                      <Text style={styles.catName}>{categoryLabel(b.cat)}</Text>
+                      <Text style={styles.catName}>{resolveCategory(b.cat, state?.categories).name}</Text>
                     </View>
                     <Text style={styles.catAmount}>
                       {format(b.amt).replace("-", "")}

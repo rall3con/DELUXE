@@ -15,12 +15,11 @@ import {
 import * as Haptics from "expo-haptics";
 import { colors, radius, spacing } from "@/src/theme";
 import {
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
+  Category,
   Section,
   TxType,
 } from "@/src/types";
-import { addTransaction } from "@/src/store";
+import { addTransaction, getActiveCategories, useAppState } from "@/src/store";
 import { convertFromEUR, useCurrency } from "@/src/currency";
 
 export type AddTransactionSheetRef = {
@@ -36,9 +35,18 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
   function AddTransactionSheet({ sections }, ref) {
     const sheetRef = useRef<BottomSheetModal>(null);
     const { info, rates, currency } = useCurrency();
+    const state = useAppState();
+    const incomeCats = useMemo(
+      () => (state ? getActiveCategories(state, "income") : []),
+      [state],
+    );
+    const expenseCats = useMemo(
+      () => (state ? getActiveCategories(state, "expense") : []),
+      [state],
+    );
     const [type, setType] = useState<TxType>("expense");
     const [amount, setAmount] = useState("");
-    const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0].id);
+    const [category, setCategory] = useState<string>("");
     const [sectionId, setSectionId] = useState<string>(sections[0]?.id ?? "main");
     const [toSectionId, setToSectionId] = useState<string>(
       sections.find((s) => s.id !== sections[0]?.id)?.id ?? "",
@@ -53,9 +61,9 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
         setAmount("");
         setNote("");
         setError(null);
-        setCategory(
-          t === "income" ? INCOME_CATEGORIES[0].id : EXPENSE_CATEGORIES[0].id,
-        );
+        const firstIncomeId = incomeCats[0]?.id ?? "other-in";
+        const firstExpenseId = expenseCats[0]?.id ?? "other-out";
+        setCategory(t === "income" ? firstIncomeId : firstExpenseId);
         setSectionId(sections[0]?.id ?? "main");
         setToSectionId(sections.find((s) => s.id !== sections[0]?.id)?.id ?? "");
         sheetRef.current?.present();
@@ -64,7 +72,7 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
     }));
 
     const snapPoints = useMemo(() => ["85%"], []);
-    const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const categories: Category[] = type === "income" ? incomeCats : expenseCats;
 
     const accent =
       type === "income"
@@ -148,8 +156,8 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
                 testID={`type-${t}`}
                 onPress={() => {
                   setType(t);
-                  if (t === "income") setCategory(INCOME_CATEGORIES[0].id);
-                  if (t === "expense") setCategory(EXPENSE_CATEGORIES[0].id);
+                  if (t === "income") setCategory(incomeCats[0]?.id ?? "other-in");
+                  if (t === "expense") setCategory(expenseCats[0]?.id ?? "other-out");
                 }}
                 style={[
                   styles.segmentBtn,
@@ -243,7 +251,7 @@ export const AddTransactionSheet = forwardRef<AddTransactionSheetRef, Props>(
                           active && { color: accent, fontWeight: "700" },
                         ]}
                       >
-                        {c.label}
+                        {c.name}
                       </Text>
                     </Pressable>
                   );

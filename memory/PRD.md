@@ -39,6 +39,45 @@ Mobile app (Expo React Native) for personal money management with a central bala
 - Donut shows a readable % with legend; empty state when no data.
 - Currency chip in header.
 
+## Phase 1 — new features (added)
+
+### Movimenti ricorrenti
+- CRUD completo in `Impostazioni → Ricorrenti`.
+- Alla prossima apertura dell'app, `processRecurring()` genera tutti i movimenti maturati dall'ultimo giorno processato fino a oggi, con la data corretta (non quella odierna).
+- Pausa / riprendi per ogni regola; eliminare la regola non tocca i movimenti già creati.
+
+### Scadenze bollette
+- CRUD in `Impostazioni → Scadenze`.
+- Banner in Home per scadenze entro 7 giorni con colori semantici (verde ok, giallo entro 3g, rosso oggi/scaduta).
+- "Paga ora" crea un'uscita nella sezione scelta e, se ricorrente, pianifica la prossima; se "una tantum", archivia la scadenza.
+- "Fatto" (quando non c'è importo) archivia senza creare uscita.
+
+### Blocco app PIN + biometria
+- PIN a 4 cifre, salvato come SHA-256 in SecureStore (AsyncStorage su web).
+- Biometria opzionale (Face ID / impronta) via `expo-local-authentication`; PIN resta sempre obbligatorio come fallback.
+- App bloccata al cold start e dopo 60s in background.
+- Reset app con doppia conferma (perde tutti i dati).
+
+### Categorie personalizzate
+- CRUD in `Impostazioni → Categorie` separate per Entrate e Uscite.
+- Categorie built-in (seed) modificabili (nome, icona, colore) ma non eliminabili.
+- Eliminazione di una categoria personalizzata: se ha movimenti collegati viene archiviata (`(archiviata)`), altrimenti rimossa.
+- Form "Nuova Entrata/Uscita" e "Ricorrente" leggono dinamicamente le categorie attive.
+
+### Impostazioni
+- Nuova schermata raggiungibile dall'icona a rotella in Home header.
+- Lista con icona + titolo + sotto-testo; stato live di PIN, biometria, numero regole/scadenze/categorie custom.
+
+## Fase 2 (prossimamente)
+- Notifiche di sistema per le scadenze (richiede build nativa).
+- Modifica di un movimento esistente.
+- Allegare foto scontrino a un movimento.
+
+## Fase 3 (dopo la Fase 2)
+- Export/import JSON per backup/ripristino.
+- Multi-conto formale (carte separate oltre a sezioni).
+- Report mensile PDF.
+
 ## Not implemented (user chose "No AI", "No auth")
 - Login / sync between devices.
 - AI categorisation.

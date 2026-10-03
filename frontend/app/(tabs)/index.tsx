@@ -20,6 +20,7 @@ import {
 import {
   monthlyStats,
   totalBalance,
+  upcomingBills,
   useAppState,
 } from "@/src/store";
 import { useCurrency } from "@/src/currency";
@@ -27,6 +28,7 @@ import {
   CurrencyPicker,
   CurrencyPickerRef,
 } from "@/src/components/CurrencyPicker";
+import { UpcomingBillBanner } from "@/src/components/UpcomingBillBanner";
 import { colors, radius, spacing } from "@/src/theme";
 
 const HERO_BG =
@@ -48,6 +50,7 @@ export default function HomeScreen() {
   const total = totalBalance(state);
   const stats = monthlyStats(state);
   const recent = state.transactions.slice(0, 5);
+  const bills = upcomingBills(state.bills);
   const sectionById = Object.fromEntries(state.sections.map((s) => [s.id, s.name]));
 
   return (
@@ -96,6 +99,13 @@ export default function HomeScreen() {
                 style={styles.headerBtn}
               >
                 <FeatherIcon name="plus" color={colors.onSurface} size={18} />
+              </Pressable>
+              <Pressable
+                testID="header-settings"
+                onPress={() => router.push("/settings")}
+                style={styles.headerBtn}
+              >
+                <FeatherIcon name="settings" color={colors.onSurface} size={18} />
               </Pressable>
             </View>
           </View>
@@ -146,6 +156,12 @@ export default function HomeScreen() {
             onTransfer={() => txSheetRef.current?.open("transfer")}
           />
         </View>
+
+        {/* Upcoming bills banner */}
+        <UpcomingBillBanner
+          bills={bills}
+          onManage={() => router.push("/settings/bills")}
+        />
 
         {/* Sections */}
         <View style={styles.block}>

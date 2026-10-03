@@ -1,7 +1,8 @@
 import FeatherIcon from "@react-native-vector-icons/feather";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/src/theme";
-import { Transaction, categoryIcon, categoryLabel } from "@/src/types";
+import { Transaction, resolveCategory } from "@/src/types";
+import { useAppState } from "@/src/store";
 import { useCurrency } from "@/src/currency";
 
 export function TransactionItem({
@@ -16,6 +17,7 @@ export function TransactionItem({
   onLongPress?: () => void;
 }) {
   const { format } = useCurrency();
+  const state = useAppState();
   const isIncome = tx.type === "income";
   const isExpense = tx.type === "expense";
   const isTransfer = tx.type === "transfer";
@@ -26,10 +28,9 @@ export function TransactionItem({
     ? colors.brandSecondary
     : colors.brandPrimary;
 
-  const iconName = isTransfer ? "repeat" : (categoryIcon(tx.category) as any);
-  const title = isTransfer
-    ? `Trasferimento`
-    : categoryLabel(tx.category);
+  const resolved = resolveCategory(tx.category, state?.categories);
+  const iconName = isTransfer ? "repeat" : (resolved.icon as any);
+  const title = isTransfer ? `Trasferimento` : resolved.name;
   const subtitle = isTransfer
     ? `${sectionName} → ${destName ?? "?"}`
     : sectionName;
